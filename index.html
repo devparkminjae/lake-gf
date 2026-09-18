@@ -178,7 +178,7 @@
             opacity: 1;
         }
 
-        /* 5명 모두 100% 도달 시 뜨는 중앙 모달 연출 */
+        /* 3명 모두 100% 도달 시 뜨는 중앙 모달 연출 */
         .final-modal {
             position: absolute;
             top: 50%;
@@ -218,6 +218,30 @@
             white-space: nowrap;
         }
 
+        /* 다시 시작 버튼 스타일 */
+        .restart-btn {
+            margin-top: 20px;
+            padding: 10px 24px;
+            font-size: 15px;
+            font-weight: bold;
+            color: black;
+            background-color: white;
+            border: 2px solid black;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+
+        .restart-btn:hover {
+            background-color: #ff9fb3;
+            color: white;
+            border-color: #ff3366;
+        }
+
+        .restart-btn:active {
+            transform: scale(0.95);
+        }
+
         @keyframes pulse {
             0% { transform: scale(1); }
             100% { transform: scale(1.18); }
@@ -234,6 +258,7 @@
         <div class="final-modal" id="finalModal">
             <div class="final-heart-icon">❤️</div>
             <div class="final-text" id="finalText"></div>
+            <button class="restart-btn" id="restartBtn">🔄 다시 시작</button>
         </div>
     </div>
 
@@ -242,14 +267,15 @@
         const svgLayer = document.getElementById('svgLayer');
         const finalModal = document.getElementById('finalModal');
         const finalText = document.getElementById('finalText');
+        const restartBtn = document.getElementById('restartBtn');
 
-        // 이름 설정 ('홍길동', '곽김동' -> '박민재', '박민욱' 수정)
+        // 이름 설정
         const centerName = '이호수';
         const outerNames = ['이가온', '한은제', '이윤서', '박민재', '박민욱'];
 
         // 상태 관리
         let isCenterClicked = false;
-        const arrivalOrder = [];
+        let arrivalOrder = [];
 
         // 중심 좌표 및 반지름
         const centerX = 300;
@@ -377,11 +403,10 @@
             if (item.affection < 100) {
                 let randomDelta = Math.floor(Math.random() * 16) - 5; // 기본 범위: -5 ~ +10
 
-                // 박민재, 박민욱 전용 70% 억제 규칙 적용
+                // 박민재, 박민욱 전용 70% 억제 규칙
                 if (item.name === '박민재' || item.name === '박민욱') {
-                    // 현재 70% 이상이거나, 이번 수치로 인해 70% 이상이 되려고 할 경우 무조건 감소
                     if (item.affection >= 70 || (item.affection + randomDelta >= 70)) {
-                        randomDelta = -(Math.floor(Math.random() * 10) + 1); // -1 ~ -10 무조건 감점
+                        randomDelta = -(Math.floor(Math.random() * 10) + 1); // 무조건 감점
                     }
                 }
 
@@ -395,7 +420,8 @@
                     const rank = arrivalOrder.length - 1;
                     showBgHeartEffect(item, rank);
 
-                    if (arrivalOrder.length === 5) {
+                    // 3명 모두 100% 도달 시 레이스 종료
+                    if (arrivalOrder.length === 3) {
                         showFinalWinner();
                     }
                 }
@@ -404,12 +430,12 @@
 
         // 배경 하트 크기 차등 적용
         function showBgHeartEffect(item, rank) {
-            const sizes = ['110px', '85px', '65px', '50px', '38px'];
-            item.bgHeart.style.fontSize = sizes[rank] || '38px';
+            const sizes = ['110px', '85px', '65px'];
+            item.bgHeart.style.fontSize = sizes[rank] || '65px';
             item.bgHeart.classList.add('show');
         }
 
-        // 5명 완료 시 최종 모달
+        // 3명 완료 시 최종 모달
         function showFinalWinner() {
             const winnerIndex = arrivalOrder[0];
             const winnerName = items[winnerIndex].name;
@@ -419,6 +445,30 @@
                 finalModal.classList.add('show');
             }, 500);
         }
+
+        // 다시 시작 (초기화) 로직
+        restartBtn.addEventListener('click', () => {
+            isCenterClicked = false;
+            arrivalOrder = [];
+
+            // 중앙 상자 초기화
+            centerBox.innerHTML = '🖱️ 클릭';
+
+            // 외곽 상자 및 상태 초기화
+            items.forEach(item => {
+                item.isClicked = false;
+                item.affection = 0;
+                item.box.innerHTML = '🖱️ 클릭';
+                item.progressBar.style.width = '0%';
+                item.progressText.innerText = '0%';
+                item.progressContainer.classList.remove('show');
+                item.bgHeart.classList.remove('show');
+                item.heart.classList.remove('show');
+            });
+
+            // 모달 닫기
+            finalModal.classList.remove('show');
+        });
 
         // 하트 노출 체크
         function updateHearts() {
