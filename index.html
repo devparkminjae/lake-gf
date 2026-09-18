@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>이호수와 아이들 - 호감도 버전</title>
+    <title>이호수와 아이들 - 전체 호감도 오르락내리락</title>
     <style>
         * {
             box-sizing: border-box;
@@ -44,7 +44,7 @@
             stroke-width: 1.5;
         }
 
-        /* 상자와 프로그레스 바를 포함하는 래퍼 (근접 시 움직이는 대상) */
+        /* 상자와 프로그레스 바를 포함하는 래퍼 */
         .box-wrapper {
             position: absolute;
             display: flex;
@@ -53,7 +53,6 @@
             gap: 6px;
             transform: translate(-50%, -50%);
             z-index: 3;
-            /* 마우스 움직임에 반응할 때 부드럽게 움직이도록 설정 */
             transition: transform 0.15s ease-out;
         }
 
@@ -103,8 +102,8 @@
         .progress-bar {
             height: 100%;
             width: 0%;
-            background-color: #ff9fb3; /* 핑크색 호감도 게이지 */
-            transition: width 0.2s ease;
+            background-color: #ff9fb3;
+            transition: width 0.3s ease;
         }
 
         .progress-text {
@@ -129,7 +128,7 @@
             z-index: 2;
             visibility: hidden;
             opacity: 0;
-            background-color: #f9f9f9; /* 선 가림용 배경 */
+            background-color: #f9f9f9;
             padding: 2px 4px;
             user-select: none;
             cursor: pointer;
@@ -151,6 +150,17 @@
             70% { transform: translate(-50%, -50%) scale(1.3); }
             100% { transform: translate(-50%, -50%) scale(1); }
         }
+
+        /* 이호수 클릭 시 통통 튀는 바운스 애니메이션 */
+        .bounce-anim {
+            animation: bounceUpDown 0.5s ease-in-out;
+        }
+
+        @keyframes bounceUpDown {
+            0% { margin-top: 0px; }
+            50% { margin-top: var(--bounce-offset, -15px); }
+            100% { margin-top: 0px; }
+        }
     </style>
 </head>
 <body>
@@ -171,7 +181,7 @@
         // 상태 관리
         let isCenterClicked = false;
         const outerClickedState = [false, false, false, false, false];
-        const affectionLevels = [0, 0, 0, 0, 0]; // 각 외곽 인원의 호감도 (%)
+        const affectionLevels = [0, 0, 0, 0, 0];
 
         // 중심 좌표 및 반지름
         const centerX = 300;
@@ -192,13 +202,16 @@
         centerWrapper.appendChild(centerBox);
         container.appendChild(centerWrapper);
 
-        // 중앙 상자 클릭 이벤트
+        // 중앙 상자('이호수') 클릭 이벤트
         centerBox.addEventListener('click', () => {
             if (!isCenterClicked) {
                 isCenterClicked = true;
                 centerBox.innerHTML = centerName;
                 updateHearts();
             }
+
+            // 이호수를 누를 때마다 전체 오르락내리락 효과 실행
+            triggerAllBounceAndAffection();
         });
 
         // 2. 외곽 5개 상자, 호감도 바, 연결 선, 하트 생성
@@ -229,9 +242,10 @@
             heart.innerHTML = '❤️';
             container.appendChild(heart);
 
-            // 외곽 상자 래퍼 (상자 + 호감도 바)
+            // 외곽 상자 래퍼
             const outerWrapper = document.createElement('div');
             outerWrapper.className = 'box-wrapper movable-target';
+            outerWrapper.id = `outer-wrapper-${i}`;
             outerWrapper.dataset.baseX = outerX;
             outerWrapper.dataset.baseY = outerY;
             outerWrapper.style.left = `${outerX}px`;
@@ -263,30 +277,28 @@
                 }
             });
 
-            // 하트 클릭 이벤트 (개별 호감도 상승: -5 ~ +10 랜덤)
+            // 개별 하트 클릭 이벤트 (개별 호감도 변동)
             heart.addEventListener('click', () => {
                 if (isCenterClicked && outerClickedState[i]) {
-                    const pContainer = document.getElementById(`progress-container-${i}`);
-                    const pBar = document.getElementById(`progress-bar-${i}`);
-                    const pText = document.getElementById(`progress-text-${i}`);
-
-                    // 호감도 바 노출
-                    pContainer.classList.add('show');
-
-                    // -5 ~ +10 랜덤 호감도 변동
-                    const randomDelta = Math.floor(Math.random() * 16) - 5;
-                    affectionLevels[i] = Math.max(0, Math.min(100, affectionLevels[i] + randomDelta));
-
-                    pBar.style.width = affectionLevels[i] + '%';
-
-                    if (affectionLevels[i] >= 100) {
-                        pText.innerHTML = '100% MAX! 💕';
-                    } else {
-                        pText.innerHTML = affectionLevels[i] + '%';
-                    }
+                    applyRandomAffection(i);
                 }
             });
         });
+
+        // 특정 인원 호감도 변동 적용 함수 (-5% ~ +10%)
+        function applyRandomAffection(i) {
+            const pContainer = document.getElementById(`progress-container-${i}`);
+            const pBar = document.getElementById(`progress-bar-${i}`);
+            const pText = document.getElementById(`progress-text-${i}`);
+
+            pContainer.classList.add('show');
+
+            const randomDelta = Math.floor(Math.random() * 16) - 5;
+            affectionLevels[i] = Math.max(0, Math.min(100, affectionLevels[i] + randomDelta));
+
+            pBar.style.width = affectionLevels[i] + '%';
+            pText.innerHTML = affectionLevels[i] >= 100 ? '100% MAX! 💕' : affectionLevels[i] + '%';
+        }
 
         // 하트 노출 체크
         function updateHearts() {
@@ -298,7 +310,28 @@
             });
         }
 
-        // 3. 마우스 가까이 가져갈 때 상자가 살짝 피하는(움직이는) 근접 로직
+        // 이호수 클릭 시 실행: 5명 전체 바운스 및 개별 호감도 랜덤 변동
+        function triggerAllBounceAndAffection() {
+            outerNames.forEach((_, i) => {
+                const wrapper = document.getElementById(`outer-wrapper-${i}`);
+
+                // 1. 눌려진 상자들에 대해 호감도 변동 (이호수 + 해당 상자 둘 다 클릭되어 하트가 열린 대상)
+                if (isCenterClicked && outerClickedState[i]) {
+                    applyRandomAffection(i);
+                }
+
+                // 2. 개별 랜덤 모션 오르락내리락 (높이 및 바운스 무작위 설정)
+                const randomOffset = (Math.random() * 20 + 10) * (Math.random() > 0.5 ? 1 : -1);
+                wrapper.style.setProperty('--bounce-offset', `${randomOffset}px`);
+
+                // 애니메이션 리셋 후 재실행
+                wrapper.classList.remove('bounce-anim');
+                void wrapper.offsetWidth; // Reflow 트리거
+                wrapper.classList.add('bounce-anim');
+            });
+        }
+
+        // 3. 마우스 접근 시 피하는 근접 피하기 로직
         document.addEventListener('mousemove', (e) => {
             const rect = container.getBoundingClientRect();
             const mouseX = e.clientX - rect.left;
@@ -314,12 +347,11 @@
                 const dy = mouseY - baseY;
                 const dist = Math.sqrt(dx * dx + dy * dy);
 
-                const threshold = 90; // 반응 마우스 거리 (px)
+                const threshold = 90;
 
                 if (dist < threshold && dist > 0) {
-                    // 마우스와의 거리가 가까울수록 더 많이 밀려남
                     const force = (threshold - dist) / threshold;
-                    const moveX = -(dx / dist) * force * 20; // 최대 20px 이동
+                    const moveX = -(dx / dist) * force * 20;
                     const moveY = -(dy / dist) * force * 20;
 
                     target.style.transform = `translate(calc(-50% + ${moveX}px), calc(-50% + ${moveY}px))`;
