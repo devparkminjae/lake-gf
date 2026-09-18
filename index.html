@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>이호수와 아이들</title>
+    <title>이호수와 아이들 - 호감도 버전</title>
     <style>
         * {
             box-sizing: border-box;
@@ -17,13 +17,14 @@
             margin: 0;
             background-color: #f9f9f9;
             font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
+            overflow: hidden;
         }
 
         /* 전체 영역 컨테이너 */
         .main-container {
             position: relative;
-            width: 550px;
-            height: 550px;
+            width: 600px;
+            height: 600px;
         }
 
         /* 연결 선(SVG) 레이어 */
@@ -43,9 +44,21 @@
             stroke-width: 1.5;
         }
 
+        /* 상자와 프로그레스 바를 포함하는 래퍼 (근접 시 움직이는 대상) */
+        .box-wrapper {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            transform: translate(-50%, -50%);
+            z-index: 3;
+            /* 마우스 움직임에 반응할 때 부드럽게 움직이도록 설정 */
+            transition: transform 0.15s ease-out;
+        }
+
         /* 사각형 상자 공통 스타일 */
         .box {
-            position: absolute;
             width: 110px;
             height: 50px;
             border: 2px solid black; /* 검은 테두리 */
@@ -59,9 +72,7 @@
             font-weight: bold;
             cursor: pointer;
             user-select: none;
-            transform: translate(-50%, -50%);
-            z-index: 3;
-            transition: background-color 0.2s, transform 0.1s;
+            transition: background-color 0.2s;
         }
 
         .box:hover {
@@ -69,13 +80,51 @@
         }
 
         .box:active {
-            transform: translate(-50%, -50%) scale(0.95);
+            transform: scale(0.95);
+        }
+
+        /* 개별 호감도 바 스타일 */
+        .progress-container {
+            width: 110px;
+            height: 16px;
+            border: 1.5px solid black;
+            background-color: white;
+            position: relative;
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .progress-container.show {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background-color: #ff9fb3; /* 핑크색 호감도 게이지 */
+            transition: width 0.2s ease;
+        }
+
+        .progress-text {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 10px;
+            font-weight: bold;
+            color: black;
         }
 
         /* 중앙 하트 스타일 */
         .heart {
             position: absolute;
-            font-size: 22px;
+            font-size: 24px;
             transform: translate(-50%, -50%);
             z-index: 2;
             visibility: hidden;
@@ -83,14 +132,18 @@
             background-color: #f9f9f9; /* 선 가림용 배경 */
             padding: 2px 4px;
             user-select: none;
-            transition: opacity 0.3s ease;
+            cursor: pointer;
+            transition: opacity 0.3s ease, transform 0.1s ease;
         }
 
-        /* 하트 활성화 시 표시 및 팝업 애니메이션 */
         .heart.show {
             visibility: visible;
             opacity: 1;
             animation: popHeart 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .heart.show:active {
+            transform: translate(-50%, -50%) scale(0.75);
         }
 
         @keyframes popHeart {
@@ -115,22 +168,29 @@
         const centerName = '이호수';
         const outerNames = ['이가온', '한은제', '이윤서', '홍길동', '곽김동'];
 
-        // 클릭 상태 관리
+        // 상태 관리
         let isCenterClicked = false;
         const outerClickedState = [false, false, false, false, false];
+        const affectionLevels = [0, 0, 0, 0, 0]; // 각 외곽 인원의 호감도 (%)
 
-        // 중심 좌표 및 배치 반지름
-        const centerX = 275;
-        const centerY = 275;
-        const radius = 200; 
+        // 중심 좌표 및 반지름
+        const centerX = 300;
+        const centerY = 300;
+        const radius = 210;
 
-        // 1. 중앙 상자 생성
+        // 1. 중앙 상자 래퍼 및 생성
+        const centerWrapper = document.createElement('div');
+        centerWrapper.className = 'box-wrapper movable-target';
+        centerWrapper.dataset.baseX = centerX;
+        centerWrapper.dataset.baseY = centerY;
+        centerWrapper.style.left = `${centerX}px`;
+        centerWrapper.style.top = `${centerY}px`;
+
         const centerBox = document.createElement('div');
         centerBox.className = 'box';
-        centerBox.style.left = `${centerX}px`;
-        centerBox.style.top = `${centerY}px`;
         centerBox.innerHTML = '🖱️ 클릭';
-        container.appendChild(centerBox);
+        centerWrapper.appendChild(centerBox);
+        container.appendChild(centerWrapper);
 
         // 중앙 상자 클릭 이벤트
         centerBox.addEventListener('click', () => {
@@ -141,21 +201,18 @@
             }
         });
 
-        // 2. 외곽 5개 상자, 연결 선, 하트 생성
+        // 2. 외곽 5개 상자, 호감도 바, 연결 선, 하트 생성
         outerNames.forEach((name, i) => {
-            // 12시 방향부터 72도 간격 배치 (라디안 변환)
             const angleDeg = -90 + (i * 72);
             const angleRad = (angleDeg * Math.PI) / 180;
 
-            // 외곽 상자 좌표
             const outerX = centerX + radius * Math.cos(angleRad);
             const outerY = centerY + radius * Math.sin(angleRad);
 
-            // 선 중간 지점 (하트 위치)
             const midX = centerX + (radius / 2) * Math.cos(angleRad);
             const midY = centerY + (radius / 2) * Math.sin(angleRad);
 
-            // SVG 얇은 연결 선 생성
+            // SVG 연결 선 생성
             const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
             line.setAttribute('x1', centerX);
             line.setAttribute('y1', centerY);
@@ -172,13 +229,30 @@
             heart.innerHTML = '❤️';
             container.appendChild(heart);
 
-            // 외곽 상자 생성
+            // 외곽 상자 래퍼 (상자 + 호감도 바)
+            const outerWrapper = document.createElement('div');
+            outerWrapper.className = 'box-wrapper movable-target';
+            outerWrapper.dataset.baseX = outerX;
+            outerWrapper.dataset.baseY = outerY;
+            outerWrapper.style.left = `${outerX}px`;
+            outerWrapper.style.top = `${outerY}px`;
+
             const box = document.createElement('div');
             box.className = 'box';
-            box.style.left = `${outerX}px`;
-            box.style.top = `${outerY}px`;
             box.innerHTML = '🖱️ 클릭';
-            container.appendChild(box);
+
+            // 호감도 바 HTML 구조
+            const progressContainer = document.createElement('div');
+            progressContainer.className = 'progress-container';
+            progressContainer.id = `progress-container-${i}`;
+            progressContainer.innerHTML = `
+                <div class="progress-bar" id="progress-bar-${i}"></div>
+                <div class="progress-text" id="progress-text-${i}">0%</div>
+            `;
+
+            outerWrapper.appendChild(box);
+            outerWrapper.appendChild(progressContainer);
+            container.appendChild(outerWrapper);
 
             // 외곽 상자 클릭 이벤트
             box.addEventListener('click', () => {
@@ -188,9 +262,33 @@
                     updateHearts();
                 }
             });
+
+            // 하트 클릭 이벤트 (개별 호감도 상승: -5 ~ +10 랜덤)
+            heart.addEventListener('click', () => {
+                if (isCenterClicked && outerClickedState[i]) {
+                    const pContainer = document.getElementById(`progress-container-${i}`);
+                    const pBar = document.getElementById(`progress-bar-${i}`);
+                    const pText = document.getElementById(`progress-text-${i}`);
+
+                    // 호감도 바 노출
+                    pContainer.classList.add('show');
+
+                    // -5 ~ +10 랜덤 호감도 변동
+                    const randomDelta = Math.floor(Math.random() * 16) - 5;
+                    affectionLevels[i] = Math.max(0, Math.min(100, affectionLevels[i] + randomDelta));
+
+                    pBar.style.width = affectionLevels[i] + '%';
+
+                    if (affectionLevels[i] >= 100) {
+                        pText.innerHTML = '100% MAX! 💕';
+                    } else {
+                        pText.innerHTML = affectionLevels[i] + '%';
+                    }
+                }
+            });
         });
 
-        // 3. 하트 노출 조건 체크 함수 (중앙 + 해당 외곽 상자가 모두 눌렸을 때만)
+        // 하트 노출 체크
         function updateHearts() {
             outerNames.forEach((_, i) => {
                 if (isCenterClicked && outerClickedState[i]) {
@@ -199,6 +297,37 @@
                 }
             });
         }
+
+        // 3. 마우스 가까이 가져갈 때 상자가 살짝 피하는(움직이는) 근접 로직
+        document.addEventListener('mousemove', (e) => {
+            const rect = container.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            const targets = document.querySelectorAll('.movable-target');
+
+            targets.forEach(target => {
+                const baseX = parseFloat(target.dataset.baseX);
+                const baseY = parseFloat(target.dataset.baseY);
+
+                const dx = mouseX - baseX;
+                const dy = mouseY - baseY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                const threshold = 90; // 반응 마우스 거리 (px)
+
+                if (dist < threshold && dist > 0) {
+                    // 마우스와의 거리가 가까울수록 더 많이 밀려남
+                    const force = (threshold - dist) / threshold;
+                    const moveX = -(dx / dist) * force * 20; // 최대 20px 이동
+                    const moveY = -(dy / dist) * force * 20;
+
+                    target.style.transform = `translate(calc(-50% + ${moveX}px), calc(-50% + ${moveY}px))`;
+                } else {
+                    target.style.transform = `translate(-50%, -50%)`;
+                }
+            });
+        });
     </script>
 
 </body>
