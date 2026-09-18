@@ -38,13 +38,12 @@
             z-index: 1;
         }
 
-        /* 얇은 검은색 연결 선 */
         line {
             stroke: black;
             stroke-width: 1.5;
         }
 
-        /* 상자와 프로그레스 바를 포함하는 래퍼 */
+        /* 상자와 프로그레스 바를 포함하는 래퍼 (마우스 피하기용) */
         .box-wrapper {
             position: absolute;
             display: flex;
@@ -54,6 +53,26 @@
             transform: translate(-50%, -50%);
             z-index: 3;
             transition: transform 0.15s ease-out;
+        }
+
+        /* 박스 뒤 순서별 하트 이펙트 */
+        .bg-heart {
+            position: absolute;
+            top: 25px; /* 상자 중앙 좌표 */
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            z-index: 1; /* 박스 바로 뒤 배치 */
+            pointer-events: none;
+            color: #ff3366;
+            opacity: 0;
+            transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.5s ease;
+            filter: drop-shadow(0 0 8px rgba(255, 51, 102, 0.5));
+            user-select: none;
+        }
+
+        .bg-heart.show {
+            opacity: 0.85;
+            transform: translate(-50%, -50%) scale(1);
         }
 
         /* 사각형 상자 공통 스타일 */
@@ -73,7 +92,7 @@
             cursor: pointer;
             user-select: none;
             transition: background-color 0.2s;
-            z-index: 2;
+            z-index: 2; /* 하트보다 위에 배치 */
         }
 
         .box:hover {
@@ -82,26 +101,6 @@
 
         .box:active {
             transform: scale(0.95);
-        }
-
-        /* 박스 뒤에 배치될 순서별 하트 이펙트 */
-        .bg-heart {
-            position: absolute;
-            top: 25px;
-            left: 55px;
-            transform: translate(-50%, -50%) scale(0);
-            z-index: 1; /* 박스 바로 뒤 */
-            pointer-events: none;
-            color: #ff4d6d;
-            opacity: 0;
-            transition: opacity 0.5s ease, transform 0.5s ease;
-            filter: drop-shadow(0 0 6px rgba(255, 77, 109, 0.4));
-            user-select: none;
-        }
-
-        .bg-heart.show {
-            opacity: 0.85;
-            transform: translate(-50%, -50%) scale(1);
         }
 
         /* 개별 호감도 바 스타일 */
@@ -169,18 +168,18 @@
             100% { transform: translate(-50%, -50%) scale(1); }
         }
 
-        /* 이호수 클릭 시 통통 튀는 바운스 애니메이션 */
-        .bounce-anim {
+        /* 오르락내리락 바운스 애니메이션 */
+        .box.bounce-anim {
             animation: bounceUpDown 0.5s ease-in-out;
         }
 
         @keyframes bounceUpDown {
-            0% { margin-top: 0px; }
-            50% { margin-top: var(--bounce-offset, -15px); }
-            100% { margin-top: 0px; }
+            0% { transform: translateY(0); }
+            50% { transform: translateY(var(--bounce-offset, -15px)); }
+            100% { transform: translateY(0); }
         }
 
-        /* 5명 모두 100% 도달 시 뜨는 중앙 모달 */
+        /* 5명 모두 100% 도달 시 뜨는 중앙 모달 연출 */
         .final-modal {
             position: absolute;
             top: 50%;
@@ -193,8 +192,8 @@
             justify-content: center;
             background-color: white;
             border: 3px solid black;
-            padding: 25px 35px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            padding: 30px 40px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
             opacity: 0;
             visibility: hidden;
             transition: all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -207,13 +206,13 @@
         }
 
         .final-heart-icon {
-            font-size: 80px;
+            font-size: 90px;
             color: #ff3366;
-            animation: pulse 1s infinite alternate ease-in-out;
+            animation: pulse 0.8s infinite alternate ease-in-out;
         }
 
         .final-text {
-            font-size: 22px;
+            font-size: 24px;
             font-weight: bold;
             color: black;
             margin-top: 15px;
@@ -222,7 +221,7 @@
 
         @keyframes pulse {
             0% { transform: scale(1); }
-            100% { transform: scale(1.15); }
+            100% { transform: scale(1.18); }
         }
     </style>
 </head>
@@ -232,7 +231,7 @@
         <!-- 연결 선이 그려질 SVG 영역 -->
         <svg class="lines-layer" id="svgLayer"></svg>
 
-        <!-- 최종 완료 결과 모달 -->
+        <!-- 최종 완성 모달 -->
         <div class="final-modal" id="finalModal">
             <div class="final-heart-icon">❤️</div>
             <div class="final-text" id="finalText"></div>
@@ -253,7 +252,7 @@
         let isCenterClicked = false;
         const outerClickedState = [false, false, false, false, false];
         const affectionLevels = [0, 0, 0, 0, 0];
-        const arrivalOrder = []; // 100% 도달 순서 기록 배열
+        const arrivalOrder = []; // 100% 도달 순서 배열
 
         // 중심 좌표 및 반지름
         const centerX = 300;
@@ -304,7 +303,7 @@
             line.setAttribute('y2', outerY);
             svgLayer.appendChild(line);
 
-            // 선 중간 하트 생성 (시각적 표시 전용)
+            // 선 중간 하트 생성
             const heart = document.createElement('div');
             heart.className = 'heart';
             heart.id = `heart-${i}`;
@@ -313,7 +312,7 @@
             heart.innerHTML = '❤️';
             container.appendChild(heart);
 
-            // 외곽 상자 래퍼
+            // 외곽 상자 래퍼 생성
             const outerWrapper = document.createElement('div');
             outerWrapper.className = 'box-wrapper movable-target';
             outerWrapper.id = `outer-wrapper-${i}`;
@@ -322,16 +321,19 @@
             outerWrapper.style.left = `${outerX}px`;
             outerWrapper.style.top = `${outerY}px`;
 
-            const box = document.createElement('div');
-            box.className = 'box';
-            box.innerHTML = '🖱️ 클릭';
-
-            // 박스 뒤 하트 이펙트 엘리먼트
+            // 박스 뒤 하트 이펙트 엘리먼트 (wrapper에 독립적으로 추가)
             const bgHeart = document.createElement('div');
             bgHeart.className = 'bg-heart';
             bgHeart.id = `bg-heart-${i}`;
             bgHeart.innerHTML = '❤️';
-            box.appendChild(bgHeart);
+            outerWrapper.appendChild(bgHeart);
+
+            // 상자 엘리먼트
+            const box = document.createElement('div');
+            box.className = 'box';
+            box.id = `box-${i}`;
+            box.innerHTML = '🖱️ 클릭';
+            outerWrapper.appendChild(box);
 
             // 호감도 바 HTML 구조
             const progressContainer = document.createElement('div');
@@ -341,9 +343,8 @@
                 <div class="progress-bar" id="progress-bar-${i}"></div>
                 <div class="progress-text" id="progress-text-${i}">0%</div>
             `;
-
-            outerWrapper.appendChild(box);
             outerWrapper.appendChild(progressContainer);
+
             container.appendChild(outerWrapper);
 
             // 외곽 상자 클릭 이벤트
@@ -356,7 +357,7 @@
             });
         });
 
-        // 특정 인원 호감도 변동 함수 (-5% ~ +10%, 100% 고정)
+        // 특정 인원 호감도 변동 함수 (-5% ~ +10%, 100% 도착 시 고정)
         function applyAffection(i) {
             const pContainer = document.getElementById(`progress-container-${i}`);
             const pBar = document.getElementById(`progress-bar-${i}`);
@@ -364,7 +365,7 @@
 
             pContainer.classList.add('show');
 
-            // 이미 100%에 도달한 사람은 호감도가 더 이상 깎이지 않음
+            // 100% 미만인 경우에만 점수 변동 (100% 도달 시 더 이상 깎이지 않음)
             if (affectionLevels[i] < 100) {
                 const randomDelta = Math.floor(Math.random() * 16) - 5;
                 affectionLevels[i] = Math.max(0, Math.min(100, affectionLevels[i] + randomDelta));
@@ -372,13 +373,13 @@
                 pBar.style.width = affectionLevels[i] + '%';
                 pText.innerHTML = affectionLevels[i] >= 100 ? '100% MAX! 💕' : affectionLevels[i] + '%';
 
-                // 100% 도달 순간 처리
+                // 최초 100% 도달 시 순서 기록 및 배경 하트 표시
                 if (affectionLevels[i] >= 100 && !arrivalOrder.includes(i)) {
                     arrivalOrder.push(i);
                     const rank = arrivalOrder.length - 1; // 0등(1위) ~ 4등(5위)
                     showBgHeartEffect(i, rank);
 
-                    // 5명 모두 100% 도달 시 최종 결과 표시
+                    // 5명 모두 100% 도달했는지 검사
                     if (arrivalOrder.length === 5) {
                         showFinalWinner();
                     }
@@ -386,24 +387,26 @@
             }
         }
 
-        // 도달 순서에 따른 박스 뒤 하트 이펙트 크기 적용
+        // 도달 순서별 배경 하트 크기 차등 적용 함수
         function showBgHeartEffect(index, rank) {
             const bgHeart = document.getElementById(`bg-heart-${index}`);
-            // 1등부터 5등까지 크기 차등 적용 (1등이 가장 큼)
-            const sizes = ['110px', '85px', '65px', '50px', '38px'];
-            bgHeart.style.fontSize = sizes[rank] || '38px';
-            bgHeart.classList.add('show');
+            if (bgHeart) {
+                // 1등(가장 큼) -> 5등 순서로 하트 크기 다르게 설정
+                const sizes = ['110px', '85px', '65px', '50px', '38px'];
+                bgHeart.style.fontSize = sizes[rank] || '38px';
+                bgHeart.classList.add('show');
+            }
         }
 
-        // 5명 모두 100% 도달 시 1등 발표
+        // 5명 모두 완료 시 최종 우승자 발표
         function showFinalWinner() {
-            const winnerIndex = arrivalOrder[0];
+            const winnerIndex = arrivalOrder[0]; // 1등 도달자
             const winnerName = outerNames[winnerIndex];
 
             finalText.innerHTML = `이호수 ❤️ ${winnerName}`;
             setTimeout(() => {
                 finalModal.classList.add('show');
-            }, 400);
+            }, 500);
         }
 
         // 하트 노출 체크
@@ -416,27 +419,27 @@
             });
         }
 
-        // 이호수 클릭 시 실행: 5명 전체 바운스 및 호감도 무작위 변동
+        // 이호수 클릭 시 실행: 5명 전체 오르락내리락 바운스 및 호감도 변동
         function triggerAllBounceAndAffection() {
             outerNames.forEach((_, i) => {
-                const wrapper = document.getElementById(`outer-wrapper-${i}`);
+                const box = document.getElementById(`box-${i}`);
 
-                // 중앙 + 해당 상자 둘 다 눌린 대상만 호감도 진행
+                // 이호수 상자와 해당 외곽 상자 둘 다 눌린 경우에만 호감도 진행
                 if (isCenterClicked && outerClickedState[i]) {
                     applyAffection(i);
                 }
 
-                // 모션 애니메이션
+                // 각 상자마다 무작위 높이 오르락내리락 효과
                 const randomOffset = (Math.random() * 20 + 10) * (Math.random() > 0.5 ? 1 : -1);
-                wrapper.style.setProperty('--bounce-offset', `${randomOffset}px`);
+                box.style.setProperty('--bounce-offset', `${randomOffset}px`);
 
-                wrapper.classList.remove('bounce-anim');
-                void wrapper.offsetWidth;
-                wrapper.classList.add('bounce-anim');
+                box.classList.remove('bounce-anim');
+                void box.offsetWidth; // Reflow 트리거
+                box.classList.add('bounce-anim');
             });
         }
 
-        // 마우스 근접 시 상자가 반응하는 효과
+        // 마우스 커서 근접 시 피하는 움직임 효과
         document.addEventListener('mousemove', (e) => {
             const rect = container.getBoundingClientRect();
             const mouseX = e.clientX - rect.left;
