@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>이호수와 아이들</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f9f9f9;
+            font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
+        }
+
+        /* 전체 영역 컨테이너 */
+        .main-container {
+            position: relative;
+            width: 550px;
+            height: 550px;
+        }
+
+        /* 연결 선(SVG) 레이어 */
+        .lines-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* 얇은 검은색 연결 선 */
+        line {
+            stroke: black;
+            stroke-width: 1.5;
+        }
+
+        /* 사각형 상자 공통 스타일 */
+        .box {
+            position: absolute;
+            width: 110px;
+            height: 50px;
+            border: 2px solid black; /* 검은 테두리 */
+            border-radius: 0; /* 라운드 없는 직사각형 */
+            background-color: white;
+            color: black; /* 검은 글씨 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            user-select: none;
+            transform: translate(-50%, -50%);
+            z-index: 3;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+
+        .box:hover {
+            background-color: #f0f0f0;
+        }
+
+        .box:active {
+            transform: translate(-50%, -50%) scale(0.95);
+        }
+
+        /* 중앙 하트 스타일 */
+        .heart {
+            position: absolute;
+            font-size: 22px;
+            transform: translate(-50%, -50%);
+            z-index: 2;
+            visibility: hidden;
+            opacity: 0;
+            background-color: #f9f9f9; /* 선 가림용 배경 */
+            padding: 2px 4px;
+            user-select: none;
+            transition: opacity 0.3s ease;
+        }
+
+        /* 하트 활성화 시 표시 및 팝업 애니메이션 */
+        .heart.show {
+            visibility: visible;
+            opacity: 1;
+            animation: popHeart 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes popHeart {
+            0% { transform: translate(-50%, -50%) scale(0); }
+            70% { transform: translate(-50%, -50%) scale(1.3); }
+            100% { transform: translate(-50%, -50%) scale(1); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="main-container" id="mainContainer">
+        <!-- 연결 선이 그려질 SVG 영역 -->
+        <svg class="lines-layer" id="svgLayer"></svg>
+    </div>
+
+    <script>
+        const container = document.getElementById('mainContainer');
+        const svgLayer = document.getElementById('svgLayer');
+
+        // 이름 설정
+        const centerName = '이호수';
+        const outerNames = ['이가온', '한은제', '이윤서', '홍길동', '곽김동'];
+
+        // 클릭 상태 관리
+        let isCenterClicked = false;
+        const outerClickedState = [false, false, false, false, false];
+
+        // 중심 좌표 및 배치 반지름
+        const centerX = 275;
+        const centerY = 275;
+        const radius = 200; 
+
+        // 1. 중앙 상자 생성
+        const centerBox = document.createElement('div');
+        centerBox.className = 'box';
+        centerBox.style.left = `${centerX}px`;
+        centerBox.style.top = `${centerY}px`;
+        centerBox.innerHTML = '🖱️ 클릭';
+        container.appendChild(centerBox);
+
+        // 중앙 상자 클릭 이벤트
+        centerBox.addEventListener('click', () => {
+            if (!isCenterClicked) {
+                isCenterClicked = true;
+                centerBox.innerHTML = centerName;
+                updateHearts();
+            }
+        });
+
+        // 2. 외곽 5개 상자, 연결 선, 하트 생성
+        outerNames.forEach((name, i) => {
+            // 12시 방향부터 72도 간격 배치 (라디안 변환)
+            const angleDeg = -90 + (i * 72);
+            const angleRad = (angleDeg * Math.PI) / 180;
+
+            // 외곽 상자 좌표
+            const outerX = centerX + radius * Math.cos(angleRad);
+            const outerY = centerY + radius * Math.sin(angleRad);
+
+            // 선 중간 지점 (하트 위치)
+            const midX = centerX + (radius / 2) * Math.cos(angleRad);
+            const midY = centerY + (radius / 2) * Math.sin(angleRad);
+
+            // SVG 얇은 연결 선 생성
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', centerX);
+            line.setAttribute('y1', centerY);
+            line.setAttribute('x2', outerX);
+            line.setAttribute('y2', outerY);
+            svgLayer.appendChild(line);
+
+            // 선 중간 하트 생성
+            const heart = document.createElement('div');
+            heart.className = 'heart';
+            heart.id = `heart-${i}`;
+            heart.style.left = `${midX}px`;
+            heart.style.top = `${midY}px`;
+            heart.innerHTML = '❤️';
+            container.appendChild(heart);
+
+            // 외곽 상자 생성
+            const box = document.createElement('div');
+            box.className = 'box';
+            box.style.left = `${outerX}px`;
+            box.style.top = `${outerY}px`;
+            box.innerHTML = '🖱️ 클릭';
+            container.appendChild(box);
+
+            // 외곽 상자 클릭 이벤트
+            box.addEventListener('click', () => {
+                if (!outerClickedState[i]) {
+                    outerClickedState[i] = true;
+                    box.innerHTML = name;
+                    updateHearts();
+                }
+            });
+        });
+
+        // 3. 하트 노출 조건 체크 함수 (중앙 + 해당 외곽 상자가 모두 눌렸을 때만)
+        function updateHearts() {
+            outerNames.forEach((_, i) => {
+                if (isCenterClicked && outerClickedState[i]) {
+                    const heart = document.getElementById(`heart-${i}`);
+                    heart.classList.add('show');
+                }
+            });
+        }
+    </script>
+
+</body>
+</html>
